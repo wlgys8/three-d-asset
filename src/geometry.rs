@@ -149,13 +149,7 @@ impl Positions {
     /// Clones and converts all the positions as `f32` data type.
     ///
     pub fn to_f32(&self) -> Vec<Vec3> {
-        match self {
-            Self::F32(values) => values.clone(),
-            Self::F64(values) => values
-                .iter()
-                .map(|v| Vec3::new(v.x as f32, v.y as f32, v.z as f32))
-                .collect::<Vec<_>>(),
-        }
+        self.as_ref().to_f32()
     }
     ///
     /// Converts and returns all the positions as `f64` data type.
@@ -174,23 +168,14 @@ impl Positions {
     /// Clones and converts all the positions as `f64` data type.
     ///
     pub fn to_f64(&self) -> Vec<Vector3<f64>> {
-        match self {
-            Self::F32(values) => values
-                .iter()
-                .map(|v| Vector3::new(v.x as f64, v.y as f64, v.z as f64))
-                .collect::<Vec<_>>(),
-            Self::F64(values) => values.clone(),
-        }
+        self.as_ref().to_f64()
     }
 
     ///
     /// Returns the number of positions.
     ///
     pub fn len(&self) -> usize {
-        match self {
-            Self::F32(values) => values.len(),
-            Self::F64(values) => values.len(),
-        }
+        self.as_ref().len()
     }
 
     ///
@@ -205,14 +190,15 @@ impl Positions {
     /// Computes the [AxisAlignedBoundingBox] for these positions.
     ///
     pub fn compute_aabb(&self) -> AxisAlignedBoundingBox {
+        self.as_ref().compute_aabb()
+    }
+
+    /// Returns an immutable reference to the [Positions] data.
+    #[inline]
+    pub fn as_ref(&self) -> PositionsRef {
         match self {
-            Positions::F32(ref positions) => AxisAlignedBoundingBox::new_with_positions(positions),
-            Positions::F64(ref positions) => AxisAlignedBoundingBox::new_with_positions(
-                &positions
-                    .iter()
-                    .map(|v| Vec3::new(v.x as f32, v.y as f32, v.z as f32))
-                    .collect::<Vec<_>>(),
-            ),
+            Self::F32(values) => PositionsRef::F32(values),
+            Self::F64(values) => PositionsRef::F64(values),
         }
     }
 }
@@ -231,5 +217,92 @@ impl std::fmt::Debug for Positions {
             Self::F64(ind) => d.field("f64", &ind.len()),
         };
         d.finish()
+    }
+}
+
+/// An immutable reference to the [Positions] data.
+pub enum PositionsRef<'a> {
+    /// 32 bit float positions slice
+    F32(&'a [Vec3]),
+    /// 64 bit float positions slice
+    F64(&'a [Vector3<f64>]),
+}
+
+impl PositionsRef<'_> {
+    /// Returns the number of positions.
+    #[inline]
+    pub fn len(&self) -> usize {
+        match self {
+            Self::F32(values) => values.len(),
+            Self::F64(values) => values.len(),
+        }
+    }
+
+    /// Returns whether the set of positions is empty.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    ///
+    /// Converts and returns all the positions as `f32` data type.
+    ///
+    pub fn to_f32(&self) -> Vec<Vec3> {
+        match self {
+            Self::F32(values) => values.to_vec(),
+            Self::F64(values) => values
+                .iter()
+                .map(|v| Vec3::new(v.x as f32, v.y as f32, v.z as f32))
+                .collect::<Vec<_>>(),
+        }
+    }
+
+    ///
+    /// Converts and returns all the positions as `f64` data type.
+    ///
+    pub fn to_f64(&self) -> Vec<Vector3<f64>> {
+        match self {
+            Self::F32(values) => values
+                .iter()
+                .map(|v| Vector3::new(v.x as f64, v.y as f64, v.z as f64))
+                .collect::<Vec<_>>(),
+            Self::F64(values) => values.to_vec(),
+        }
+    }
+
+    ///
+    /// Computes the [AxisAlignedBoundingBox] for these positions.
+    ///
+    pub fn compute_aabb(&self) -> AxisAlignedBoundingBox {
+        match self {
+            Self::F32(positions) => AxisAlignedBoundingBox::new_with_positions(positions),
+            Self::F64(positions) => AxisAlignedBoundingBox::new_with_positions(
+                &positions
+                    .iter()
+                    .map(|v| Vec3::new(v.x as f32, v.y as f32, v.z as f32))
+                    .collect::<Vec<_>>(),
+            ),
+        }
+    }
+}
+
+impl<'a> From<&'a [Vector3<f32>]> for PositionsRef<'a> {
+    #[inline]
+    fn from(positions: &'a [Vec3]) -> Self {
+        Self::F32(positions)
+    }
+}
+
+impl<'a> From<&'a [Vector3<f64>]> for PositionsRef<'a> {
+    #[inline]
+    fn from(positions: &'a [Vector3<f64>]) -> Self {
+        Self::F64(positions)
+    }
+}
+
+impl<'a> From<&'a Positions> for PositionsRef<'a> {
+    #[inline]
+    fn from(positions: &'a Positions) -> Self {
+        positions.as_ref()
     }
 }
